@@ -18,7 +18,7 @@ afterAll(async () => {
 });
 
 describe("Meetings", () => {
-  it("should get all meetings", async () => {
+  test("that you get nothing when there are no meetings", async () => {
     const response = await request(app)
       .get("/api/meetings")
       .set("Accept", "application/json")
@@ -29,7 +29,7 @@ describe("Meetings", () => {
     expect(data.length).toEqual(0);
   });
 
-  it("should create a new meeting", async () => {
+  test("that you can create a new meeting", async () => {
     const response = await request(app)
       .post("/api/meetings")
       .set("Accept", "application/json")
@@ -42,7 +42,7 @@ describe("Meetings", () => {
     expect(response.status).toBe(201);
   });
 
-  it("should return the newly created meeting", async () => {
+  test("that you get the newly created meeting", async () => {
     const response = await request(app)
       .get("/api/meetings")
       .set("Accept", "application/json")
