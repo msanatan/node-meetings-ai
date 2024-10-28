@@ -72,12 +72,6 @@ export const updateMeetingTranscript = async (
   const { id } = req.params;
   const { transcript } = req.body;
 
-  // Input validation
-  if (typeof transcript !== "string") {
-    res.status(400).json({ message: "Transcript must be a string" });
-    return;
-  }
-
   try {
     const meeting = await Meeting.findOneAndUpdate(
       { _id: id, userId: req.userId },
