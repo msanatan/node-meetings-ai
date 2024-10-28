@@ -20,6 +20,22 @@ export const getAllMeetings = async (
   }
 };
 
+export const createMeeting = async (
+  req: AuthenticatedRequest,
+  res: Response
+) => {
+  try {
+    const meeting = new Meeting({
+      ...req.body,
+      userId: req.userId,
+    });
+    await meeting.save();
+    res.status(201).json(meeting);
+  } catch (err) {
+    res.status(500).json({ message: (err as Error).message });
+  }
+};
+
 // TODO: implement other endpoints
 
 export const getMeetingStats = async (
