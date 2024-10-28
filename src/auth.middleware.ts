@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from "express";
+import jwt, { JwtPayload } from "jsonwebtoken";
 
 export interface AuthenticatedRequest extends Request {
   userId?: string;
@@ -9,11 +10,25 @@ export const authMiddleware = (
   res: Response,
   next: NextFunction
 ): void => {
-  const userId = req.header("x-user-id");
-  if (!userId) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
     res.status(401).json({ message: "Authentication required" });
     return;
   }
-  req.userId = userId;
+
+  const token = authHeader.split(" ")[1];
+  if (!token) {
+    res.status(401).json({ message: "Authentication required" });
+    return;
+  }
+
+  try {
+    const verifiedToken = jwt.verify(token, process.env.JWT_SECRET as string);
+    req.userId = (verifiedToken as JwtPayload).sub;
+  } catch (err) {
+    res.status(401).json({ message: "Invalid token" });
+    return;
+  }
+
   next();
 };
