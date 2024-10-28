@@ -5,10 +5,13 @@ services:
     ports:
       - 3000:3000
     environment:
-      - MONGO_URI=${MONGO_URI}
-      - JWT_SECRET=${JWT_SECRET}
+      MONGO_URI: mongodb://admin:admin@mongodb:27017/meetings?authSource=admin
+      JWT_SECRET: your-secret-key
+      PORT: 3000
     depends_on:
       - mongodb
+    networks:
+      - database
 
   mongodb:
     image: mongo:latest
@@ -20,6 +23,12 @@ services:
     environment:
       MONGO_INITDB_ROOT_USERNAME: admin
       MONGO_INITDB_ROOT_PASSWORD: admin
+    networks:
+      - database
+
+networks:
+  database:
+    driver: bridge
 
 volumes:
   dbdata:
