@@ -1,4 +1,4 @@
-import mongoose, { Document, Schema } from 'mongoose';
+import mongoose, { Document, Schema } from "mongoose";
 
 export interface IMeeting extends Document {
   userId: string;
@@ -17,7 +17,7 @@ const meetingSchema = new Schema<IMeeting>({
   participants: [String],
   transcript: String,
   summary: String,
-  actionItems: [String]
+  actionItems: [String],
 });
 
-export const Meeting = mongoose.model<IMeeting>('Meeting', meetingSchema);
+export const Meeting = mongoose.model<IMeeting>("Meeting", meetingSchema);

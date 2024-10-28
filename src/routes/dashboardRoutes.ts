@@ -1,9 +1,9 @@
-import express from 'express';
-import mongoose from 'mongoose';
-import { AuthenticatedRequest } from '../auth.middleware.js';
-import { Meeting } from '../models/meeting.js';
-import { Task } from '../models/task.js';
-import { Types } from 'mongoose';
+import express from "express";
+import mongoose from "mongoose";
+import { AuthenticatedRequest } from "../auth.middleware.js";
+import { Meeting } from "../models/meeting.js";
+import { Task } from "../models/task.js";
+import { Types } from "mongoose";
 
 interface UpcomingMeeting {
   _id: Types.ObjectId;
@@ -30,7 +30,6 @@ interface DashboardData {
   upcomingMeetings: UpcomingMeeting[];
   overdueTasks: OverdueTask[];
 }
-
 
 const router = express.Router();
 
