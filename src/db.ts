@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import { MongoMemoryServer } from "mongodb-memory-server";
 import dotenv from "dotenv";
+import logger from "./logger";
 
 dotenv.config();
 
@@ -16,9 +17,9 @@ export const connectDB = async () => {
 
   try {
     const conn = await mongoose.connect(mongoUrl!);
-    console.log(`MongoDB Connected: ${conn.connection.host}`);
+    logger.info(`MongoDB Connected: ${conn.connection.host}`);
   } catch (error) {
-    console.error(error);
+    logger.error(error);
     process.exit(1);
   }
 };
@@ -30,9 +31,9 @@ export const disconnectDB = async () => {
       await mockMongo.stop();
       mockMongo = null;
     }
-    console.log(`MongoDB Disconnected`);
+    logger.info(`MongoDB Disconnected`);
   } catch (error) {
-    console.error(error);
+    logger.error(error);
     process.exit(1);
   }
 };
