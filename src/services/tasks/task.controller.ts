@@ -1,6 +1,7 @@
 import { Response } from "express";
 import { Task } from "./task.model.js";
 import { AuthenticatedRequest } from "../../middlewares/auth.js";
+import logger from "../../logger.js";
 
 export const getAllTasks = async (req: AuthenticatedRequest, res: Response) => {
   const limit = parseInt((req.query?.limit as string) || "10", 10);
@@ -19,6 +20,12 @@ export const getAllTasks = async (req: AuthenticatedRequest, res: Response) => {
       limit,
       page,
       data: tasks,
+    });
+    logger.info({
+      message: "Fetched tasks successfully",
+      userId: req.userId,
+      limit,
+      page,
     });
   } catch (err) {
     res.status(500).json({ message: (err as Error).message });

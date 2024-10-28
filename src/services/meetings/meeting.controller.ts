@@ -2,6 +2,7 @@ import { Response } from "express";
 import { Meeting } from "./meeting.model.js";
 import { AuthenticatedRequest } from "../../middlewares/auth.js";
 import { Task } from "../tasks/task.model.js";
+import logger from "../../logger.js";
 
 export const getAllMeetings = async (
   req: AuthenticatedRequest,
@@ -23,6 +24,12 @@ export const getAllMeetings = async (
       page,
       data: meetings,
     });
+    logger.info({
+      message: "Fetched meetings successfully",
+      userId: req.userId,
+      limit,
+      page,
+    });
   } catch (err) {
     res.status(500).json({ message: (err as Error).message });
   }
@@ -39,6 +46,11 @@ export const createMeeting = async (
     });
     await meeting.save();
     res.status(201).json(meeting);
+    logger.info({
+      message: "Meeting created successfully",
+      meetingId: meeting._id,
+      userId: req.userId,
+    });
   } catch (err) {
     res.status(500).json({ message: (err as Error).message });
   }
@@ -60,6 +72,11 @@ export const getMeetingById = async (
     const tasks = await Task.find({ meetingId: meeting._id });
 
     res.json({ meeting, tasks });
+    logger.info({
+      message: "Fetched meeting successfully",
+      meetingId: id,
+      userId: req.userId,
+    });
   } catch (err) {
     res.status(500).json({ message: (err as Error).message });
   }
@@ -85,6 +102,11 @@ export const updateMeetingTranscript = async (
     }
 
     res.json(meeting);
+    logger.info({
+      message: "Transcript updated",
+      meetingId: id,
+      userId: req.userId,
+    });
   } catch (err) {
     res.status(500).json({ message: (err as Error).message });
   }
@@ -143,6 +165,15 @@ export const summarizeMeeting = async (
       summary,
       actionItems,
       createdTasks: tasks,
+    });
+    logger.info({
+      message: "Summarized meeting",
+      data: {
+        summary,
+        actionItems,
+        createdTasks: tasks,
+      },
+      userId: req.userId,
     });
   } catch (err) {
     res.status(500).json({ message: (err as Error).message });
