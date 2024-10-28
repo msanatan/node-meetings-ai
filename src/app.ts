@@ -1,13 +1,10 @@
 import express from "express";
-import connectDB from "./db.js";
 import { meetingRoutes } from "./services/meetings/meeting.routes.js";
 import { taskRoutes } from "./services/tasks/task.routes.js";
 import { dashboardRoutes } from "./services/dashboard/dashboard.routes.js";
 import { authMiddleware } from "./middlewares/auth.js";
 
 const app = express();
-
-connectDB;
 
 app.use(express.json());
 
