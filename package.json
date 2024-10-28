@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node --import=tsx src/server.ts",
     "seed": "node --import=tsx src/scripts/seed.ts",
-    "dev": "nodemon --watch 'src/**/*.ts' --exec 'node --import=tsx src/server.ts'"
+    "dev": "nodemon --watch 'src/**/*.ts' --exec 'node --import=tsx src/server.ts'",
+    "generate:token": "node --import=tsx src/scripts/generate-token.ts"
   },
   "keywords": [],
   "author": "",
