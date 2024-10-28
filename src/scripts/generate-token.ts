@@ -1,10 +1,7 @@
-import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
+import { generateToken } from "../utils/token";
 
 dotenv.config();
 
-const payload = { sub: process.argv[3] };
-const secret = process.env.JWT_SECRET!;
-const token = jwt.sign(payload, secret, { expiresIn: "1h" });
-
+const token = generateToken(process.argv[3], process.env.JWT_SECRET!);
 console.log(`Generated JWT:\n${token}\n`);
