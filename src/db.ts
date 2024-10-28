@@ -7,10 +7,11 @@ dotenv.config();
 let mockMongo: MongoMemoryServer | null = null;
 
 export const connectDB = async () => {
-  let mongoUrl = process.env.MONGO_URL;
+  let mongoUrl = process.env.MONGO_URI;
   if (process.env.NODE_ENV === "test") {
     mockMongo = await MongoMemoryServer.create();
     mongoUrl = mockMongo.getUri();
+    process.env.MONGO_URI = mongoUrl;
   }
 
   try {
