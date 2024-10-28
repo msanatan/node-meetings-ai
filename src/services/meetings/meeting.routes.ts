@@ -1,6 +1,6 @@
 import express from "express";
 import { Meeting } from "../models/meeting.model.js";
-import { AuthenticatedRequest } from "../../auth.middleware.js";
+import { AuthenticatedRequest } from "../../middlewares/auth.js";
 
 export const router = express.Router();
 
