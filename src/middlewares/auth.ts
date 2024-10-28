@@ -25,6 +25,7 @@ export const authMiddleware = (
   try {
     const verifiedToken = jwt.verify(token, process.env.JWT_SECRET as string);
     req.userId = (verifiedToken as JwtPayload).sub;
+    // TODO: While verifying the token is a good step, we still should check if the user exists in the database
   } catch (err) {
     res.status(401).json({ message: "Invalid token" });
     return;
