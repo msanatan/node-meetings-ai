@@ -3,26 +3,21 @@ import { Task } from "./task.model.js";
 import { AuthenticatedRequest } from "../../middlewares/auth.js";
 
 export const getAllTasks = async (req: AuthenticatedRequest, res: Response) => {
-  const { limit, page } = req.query as unknown as {
-    limit: number;
-    page: number;
-  };
+  const limit = parseInt((req.query?.limit as string) || "10", 10);
+  const page = parseInt((req.query?.page as string) || "1", 10);
 
   try {
-    const parsedLimit = Number(limit) || 10;
-    const parsedPage = Number(page) || 1;
-
     const tasks = await Task.find({ userId: req.userId })
-      .limit(parsedLimit)
-      .skip((parsedPage - 1) * parsedLimit)
+      .limit(limit)
+      .skip((page - 1) * limit)
       .exec();
 
     const total = await Task.countDocuments({ userId: req.userId });
 
     res.json({
       total,
-      limit: parsedLimit,
-      page: parsedPage,
+      limit,
+      page,
       data: tasks,
     });
   } catch (err) {
