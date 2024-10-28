@@ -1,8 +1,8 @@
 import express from "express";
 import connectDB from "./db.js";
-import { meetingRoutes } from "./routes/meeting.routes.js";
-import { taskRoutes } from "./routes/task.routes.js";
-import { dashboardRoutes } from "./routes/dashboard.routes.js";
+import { meetingRoutes } from "./services/meetings/meeting.routes.js";
+import { taskRoutes } from "./services/tasks/task.routes.js";
+import { dashboardRoutes } from "./services/dashboard/dashboard.routes.js";
 import { authMiddleware } from "./auth.middleware.js";
 
 const app = express();
