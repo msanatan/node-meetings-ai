@@ -8,10 +8,17 @@ services:
       MONGO_URI: mongodb://admin:admin@mongodb:27017/meetings?authSource=admin
       JWT_SECRET: your-secret-key
       PORT: 3000
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: redispassword
+      REDIS_MEETING_STATS_CACHE_TTL: 3600
+      REDIS_DASHBOARD_STATS_CACHE_TTL: 3600
     depends_on:
       - mongodb
+      - redis
     networks:
       - database
+      - cache
 
   mongodb:
     image: mongo:latest
@@ -26,10 +33,26 @@ services:
     networks:
       - database
 
+  redis:
+    image: redis:latest
+    container_name: redis
+    ports:
+      - 6379:6379
+    volumes:
+      - redisdata:/data
+    networks:
+      - cache
+      - database
+    command: [ "redis-server", "--requirepass", "redispassword" ]
+
 networks:
   database:
+    driver: bridge
+  cache:
     driver: bridge
 
 volumes:
   dbdata:
+    driver: local
+  redisdata:
     driver: local
