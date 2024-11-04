@@ -1,18 +1,16 @@
 import mongoose from "mongoose";
 import { MongoMemoryServer } from "mongodb-memory-server";
-import dotenv from "dotenv";
+import { config } from "./config";
 import logger from "./logger";
-
-dotenv.config();
 
 let mockMongo: MongoMemoryServer | null = null;
 
 export const connectDB = async () => {
-  let mongoUrl = process.env.MONGO_URI;
-  if (process.env.NODE_ENV === "test") {
+  let mongoUrl = config.mongoUri;
+  if (config.environment === "test") {
     mockMongo = await MongoMemoryServer.create();
     mongoUrl = mockMongo.getUri();
-    process.env.MONGO_URI = mongoUrl;
+    config.mongoUri = mongoUrl;
   }
 
   try {

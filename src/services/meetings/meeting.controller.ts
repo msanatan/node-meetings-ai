@@ -24,12 +24,6 @@ export const getAllMeetings = async (
       page,
       data: meetings,
     });
-    logger.info({
-      message: "Fetched meetings successfully",
-      userId: req.userId,
-      limit,
-      page,
-    });
   } catch (err) {
     res.status(500).json({ message: (err as Error).message });
   }
@@ -72,11 +66,6 @@ export const getMeetingById = async (
     const tasks = await Task.find({ meetingId: meeting._id });
 
     res.json({ meeting, tasks });
-    logger.info({
-      message: "Fetched meeting successfully",
-      meetingId: id,
-      userId: req.userId,
-    });
   } catch (err) {
     res.status(500).json({ message: (err as Error).message });
   }

@@ -1,7 +1,9 @@
-import dotenv from "dotenv";
+import { config } from "../config";
 import { generateToken } from "../utils/token";
 
-dotenv.config();
-
-const token = generateToken(process.argv[3], process.env.JWT_SECRET!);
+const token = generateToken(
+  process.argv[3],
+  config.jwtSecret,
+  config.jwtExpiration
+);
 console.log(`Generated JWT:\n${token}\n`);

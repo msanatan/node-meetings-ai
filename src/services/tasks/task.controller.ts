@@ -21,12 +21,6 @@ export const getAllTasks = async (req: AuthenticatedRequest, res: Response) => {
       page,
       data: tasks,
     });
-    logger.info({
-      message: "Fetched tasks successfully",
-      userId: req.userId,
-      limit,
-      page,
-    });
   } catch (err) {
     res.status(500).json({ message: (err as Error).message });
   }
