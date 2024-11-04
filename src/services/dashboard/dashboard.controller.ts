@@ -39,7 +39,6 @@ export const getDashboardStats = async (
     const userId = req.userId;
     const now = Date.now();
 
-    // We're running these in parallel to improve performance, so you won't see "await" like you'd expect
     const totalMeetings = await Meeting.countDocuments({ userId });
 
     const taskSummary = await Task.aggregate([
@@ -71,15 +70,6 @@ export const getDashboardStats = async (
       .select("_id title dueDate meetingId")
       .lean()
       .exec();
-
-    // // Execute all promises concurrently
-    // const [totalMeetings, taskSummary, upcomingMeetings, overdueTasks] =
-    //   await Promise.all([
-    //     totalMeetingsPromise,
-    //     taskSummaryPromise,
-    //     upcomingMeetingsPromise,
-    //     overdueTasksPromise,
-    //   ]);
 
     const taskSummaryProcessed = {
       pending: 0,
