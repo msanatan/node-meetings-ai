@@ -114,11 +114,9 @@ describe("Meetings", () => {
 
 describe("Meetings Stats API", () => {
   beforeEach(async () => {
-    // Clear existing meetings and tasks
     await Meeting.deleteMany({ userId: "user5" });
     await Task.deleteMany({ userId: "user5" });
 
-    // Add sample meetings
     const meetings = [
       {
         userId: "user5",
@@ -204,7 +202,6 @@ describe("Meetings Stats API", () => {
   });
 
   test("GET /api/meetings/stats - should handle users with no meetings", async () => {
-    // Delete all meetings for user5
     await Meeting.deleteMany({ userId: "user5" });
 
     const response = await request(app)
@@ -244,6 +241,183 @@ describe("Meetings Stats API", () => {
 
     const response = await request(app)
       .get("/api/meetings/stats")
+      .set("Authorization", `Bearer ${authToken}`)
+      .expect(500);
+
+    expect(response.body).toEqual({ message: "Internal Server Error" });
+  });
+});
+
+interface TestMeeting {
+  _id?: string;
+  userId: string;
+  title: string;
+  date: Date;
+  endDate?: Date;
+  duration?: number;
+  participants: string[];
+  transcript?: string;
+  summary?: string;
+  actionItems?: string[];
+}
+
+describe("Dashboard Stats API", () => {
+  beforeEach(async () => {
+    await Meeting.deleteMany({ userId: "user5" });
+    await Task.deleteMany({ userId: "user5" });
+    // Could not get useFakeTimers to work, so mocking the now function for now
+    // It isn't ideal because we have to use Date.now() in the dashboard controller for this test to pass
+    Date.now = jest.fn(() => new Date("2024-04-20").getTime());
+
+    const meetings: TestMeeting[] = [
+      // Past meeting
+      {
+        userId: "user5",
+        title: "Meeting 1",
+        date: new Date("2024-04-10T09:00:00Z"),
+        endDate: new Date("2024-04-10T10:00:00Z"),
+        duration: 60,
+        participants: ["Alice", "Bob"],
+        transcript: "Transcript 1",
+        summary: "Summary 1",
+        actionItems: ["Action 1"],
+      },
+      // Past meeting
+      {
+        userId: "user5",
+        title: "Meeting 2",
+        date: new Date("2024-04-15T14:00:00Z"),
+        endDate: new Date("2024-04-15T14:30:00Z"),
+        duration: 30,
+        participants: ["Alice", "Charlie"],
+        transcript: "Transcript 2",
+        summary: "Summary 2",
+        actionItems: ["Action 2"],
+      },
+      // Future meeting
+      {
+        userId: "user5",
+        title: "Meeting 3",
+        date: new Date("2024-04-25T11:00:00Z"),
+        participants: ["Bob", "Charlie"],
+      },
+    ];
+
+    await Meeting.insertMany(meetings);
+
+    // Get IDs of created meetings
+    const allMeetings = await Meeting.find({ userId: "user5" });
+    meetings.forEach((meeting, index) => {
+      if (allMeetings[index].title === meeting.title) {
+        meetings[index]._id = allMeetings[index]._id as string;
+      }
+    });
+
+    // Create sample tasks
+    const tasks = [
+      {
+        userId: "user5",
+        title: "Task 1",
+        dueDate: new Date("2024-04-29T17:00:00Z"), // Not overdue
+        status: "pending",
+        meetingId: meetings[0]._id,
+      },
+      {
+        userId: "user5",
+        title: "Task 2",
+        dueDate: new Date("2024-04-12T17:00:00Z"), // Overdue
+        status: "in-progress",
+        meetingId: meetings[0]._id,
+      },
+      {
+        userId: "user5",
+        title: "Task 3",
+        dueDate: new Date("2024-04-22T17:00:00Z"), // Not overdue
+        status: "in-progress",
+        meetingId: meetings[1]._id,
+      },
+      {
+        userId: "user5",
+        title: "Task 4",
+        dueDate: new Date("2024-04-23T17:00:00Z"), // Not overdue
+        status: "completed",
+        meetingId: meetings[1]._id,
+      },
+    ];
+
+    await Task.insertMany(tasks);
+  });
+
+  afterEach(async () => {
+    await Meeting.deleteMany({ userId: "user5" });
+    await Task.deleteMany({ userId: "user5" });
+  });
+
+  test("GET /api/dashboard - should retrieve correct dashboard statistics", async () => {
+    const response = await request(app)
+      .get("/api/dashboard")
+      .set("Authorization", `Bearer ${authToken}`)
+      .expect(200);
+
+    expect(response.body).toHaveProperty("totalMeetings", 3);
+    expect(response.body).toHaveProperty("taskSummary");
+    expect(response.body.taskSummary).toEqual({
+      pending: 1,
+      "in-progress": 2,
+      completed: 1,
+    });
+
+    expect(response.body).toHaveProperty("upcomingMeetings");
+    expect(Array.isArray(response.body.upcomingMeetings)).toBe(true);
+    expect(response.body.upcomingMeetings.length).toBe(1);
+    expect(response.body.upcomingMeetings[0]).toHaveProperty(
+      "title",
+      "Meeting 3"
+    );
+
+    expect(response.body).toHaveProperty("overdueTasks");
+    expect(Array.isArray(response.body.overdueTasks)).toBe(true);
+    expect(response.body.overdueTasks.length).toBe(1);
+    expect(response.body.overdueTasks[0]).toHaveProperty("title", "Task 2");
+    expect(response.body.overdueTasks[0]).toHaveProperty(
+      "meetingTitle",
+      "Meeting 1"
+    );
+  });
+
+  test("GET /api/dashboard - should handle users with no meetings and tasks", async () => {
+    await Meeting.deleteMany({ userId: "user5" });
+    await Task.deleteMany({ userId: "user5" });
+
+    const response = await request(app)
+      .get("/api/dashboard")
+      .set("Authorization", `Bearer ${authToken}`)
+      .expect(200);
+
+    expect(response.body).toHaveProperty("totalMeetings", 0);
+    expect(response.body).toHaveProperty("taskSummary");
+    expect(response.body.taskSummary).toEqual({
+      pending: 0,
+      "in-progress": 0,
+      completed: 0,
+    });
+
+    expect(response.body).toHaveProperty("upcomingMeetings");
+    expect(Array.isArray(response.body.upcomingMeetings)).toBe(true);
+    expect(response.body.upcomingMeetings.length).toBe(0);
+
+    expect(response.body).toHaveProperty("overdueTasks");
+    expect(Array.isArray(response.body.overdueTasks)).toBe(true);
+    expect(response.body.overdueTasks.length).toBe(0);
+  });
+
+  test("GET /api/dashboard - should handle server errors gracefully", async () => {
+    jest
+      .spyOn(Meeting, "countDocuments")
+      .mockRejectedValue(new Error("DB Error"));
+
+    const response = await request(app)
+      .get("/api/dashboard")
       .set("Authorization", `Bearer ${authToken}`)
       .expect(500);
 

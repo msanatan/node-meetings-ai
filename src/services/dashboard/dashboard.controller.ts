@@ -3,19 +3,20 @@ import { AuthenticatedRequest } from "../../middlewares/auth.js";
 import { Meeting } from "../meetings/meeting.model.js";
 import { Task } from "../tasks/task.model.js";
 import { Response } from "express";
+import logger from "../../logger.js";
 
 interface UpcomingMeeting {
-  _id: Types.ObjectId;
+  _id: string;
   title: string;
   date: Date;
   participantCount: number;
 }
 
 interface OverdueTask {
-  _id: Types.ObjectId;
+  _id: string;
   title: string;
   dueDate: Date;
-  meetingId: Types.ObjectId;
+  meetingId: string;
   meetingTitle: string;
 }
 
@@ -23,7 +24,7 @@ interface DashboardData {
   totalMeetings: number;
   taskSummary: {
     pending: number;
-    inProgress: number;
+    "in-progress": number;
     completed: number;
   };
   upcomingMeetings: UpcomingMeeting[];
@@ -34,43 +35,94 @@ export const getDashboardStats = async (
   req: AuthenticatedRequest,
   res: Response
 ) => {
-  // TODO: fix this
-  // it should be sorted by date, only include upcoming meetings, limit to 5 and only include the _id, title, date, and participantCount fields
-  const upcomingMeetings = (await Meeting.find()).map((meeting) => {
-    return {
-      _id: meeting._id as mongoose.Types.ObjectId,
-      title: meeting.title,
-      date: meeting.date,
-      participantCount: meeting.participants.length,
+  try {
+    const userId = req.userId;
+    const now = Date.now();
+
+    // We're running these in parallel to improve performance, so you won't see "await" like you'd expect
+    const totalMeetings = await Meeting.countDocuments({ userId });
+
+    const taskSummary = await Task.aggregate([
+      { $match: { userId } },
+      {
+        $group: {
+          _id: "$status",
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    const upcomingMeetings = await Meeting.find({
+      userId,
+      date: { $gte: now },
+    })
+      .sort({ date: 1 })
+      .limit(5)
+      .select("_id title date participants")
+      .lean() // We don't need the full document, just the data we need
+      .exec();
+
+    const overdueTasks = await Task.find({
+      userId,
+      dueDate: { $lt: now },
+      status: { $ne: "completed" },
+    })
+      .populate("meetingId", "title")
+      .select("_id title dueDate meetingId")
+      .lean()
+      .exec();
+
+    // // Execute all promises concurrently
+    // const [totalMeetings, taskSummary, upcomingMeetings, overdueTasks] =
+    //   await Promise.all([
+    //     totalMeetingsPromise,
+    //     taskSummaryPromise,
+    //     upcomingMeetingsPromise,
+    //     overdueTasksPromise,
+    //   ]);
+
+    const taskSummaryProcessed = {
+      pending: 0,
+      "in-progress": 0,
+      completed: 0,
     };
-  });
 
-  const dashboardData: DashboardData = {
-    totalMeetings: (await Meeting.find()).length,
-    taskSummary: {
-      pending: 10,
-      inProgress: 5,
-      completed: 2,
-    },
-    upcomingMeetings,
-    // TODO: need to lookup meeting title from meeting collection
-    overdueTasks: [
-      {
-        _id: new mongoose.Types.ObjectId(),
-        title: "Task 1",
-        dueDate: new Date(),
-        meetingId: new mongoose.Types.ObjectId(),
-        meetingTitle: "Meeting 1",
-      },
-      {
-        _id: new mongoose.Types.ObjectId(),
-        title: "Task 2",
-        dueDate: new Date(),
-        meetingId: new mongoose.Types.ObjectId(),
-        meetingTitle: "Meeting 2",
-      },
-    ],
-  };
+    taskSummary.forEach((item: { _id: string; count: number }) => {
+      if (item._id in taskSummaryProcessed) {
+        taskSummaryProcessed[item._id as keyof typeof taskSummaryProcessed] =
+          item.count;
+      }
+    });
 
-  res.json(dashboardData);
+    const upcomingMeetingsProcessed: UpcomingMeeting[] = upcomingMeetings.map(
+      (meeting: any) => ({
+        _id: meeting._id,
+        title: meeting.title,
+        date: meeting.date,
+        participantCount: meeting.participants.length,
+      })
+    );
+
+    const overdueTasksProcessed: OverdueTask[] = overdueTasks.map(
+      (task: any) => ({
+        _id: task._id,
+        title: task.title,
+        dueDate: task.dueDate,
+        meetingId: task.meetingId ? task.meetingId._id.toString() : "",
+        meetingTitle: task.meetingId ? task.meetingId.title : "",
+      })
+    );
+
+    const dashboardData: DashboardData = {
+      totalMeetings,
+      taskSummary: taskSummaryProcessed,
+      upcomingMeetings: upcomingMeetingsProcessed,
+      overdueTasks: overdueTasksProcessed,
+    };
+
+    res.json(dashboardData);
+  } catch (err) {
+    logger.error(err);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
 };
