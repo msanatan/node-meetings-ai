@@ -1,4 +1,5 @@
 import { Response } from "express";
+import { PipelineStage } from "mongoose";
 import { Meeting } from "./meeting.model.js";
 import { AuthenticatedRequest } from "../../middlewares/auth.js";
 import { Task } from "../tasks/task.model.js";
@@ -76,25 +77,44 @@ export const updateMeetingTranscript = async (
   res: Response
 ) => {
   const { id } = req.params;
-  const { transcript } = req.body;
+  const { transcript, endDate } = req.body;
 
   try {
-    const meeting = await Meeting.findOneAndUpdate(
-      { _id: id, userId: req.userId },
-      { transcript },
-      { new: true }
-    );
-
+    const meeting = await Meeting.findOne({ _id: id, userId: req.userId });
     if (!meeting) {
       res.status(404).json({ message: "Meeting not found" });
       return;
     }
+
+    // Update transcript
+    meeting.transcript = transcript;
+
+    const parsedEndDate = new Date(endDate);
+    const parsedStartDate = new Date(meeting.date);
+
+    if (parsedEndDate < parsedStartDate) {
+      res
+        .status(400)
+        .json({ message: "End date cannot be before the start date" });
+      return;
+    }
+
+    const duration = Math.round(
+      (parsedEndDate.getTime() - parsedStartDate.getTime()) / 60000
+    );
+
+    meeting.endDate = parsedEndDate;
+    meeting.duration = duration;
+
+    await meeting.save();
 
     res.json(meeting);
     logger.info({
       message: "Transcript updated",
       meetingId: id,
       userId: req.userId,
+      endDate: meeting.endDate,
+      duration: meeting.duration,
     });
   } catch (err) {
     res.status(500).json({ message: (err as Error).message });
@@ -169,40 +189,172 @@ export const summarizeMeeting = async (
   }
 };
 
+export interface TopParticipant {
+  participant: string;
+  meetingCount: number;
+}
+
+export interface MeetingsByDayOfWeek {
+  dayOfWeek: number;
+  count: number;
+}
+
+export interface MeetingStats {
+  generalStats: {
+    totalMeetings: number;
+    averageParticipants: number;
+    totalParticipants: number;
+    shortestMeeting: number;
+    longestMeeting: number;
+    averageDuration: number;
+  };
+  topParticipants: TopParticipant[];
+  meetingsByDayOfWeek: MeetingsByDayOfWeek[];
+}
+
 export const getMeetingStats = async (
   req: AuthenticatedRequest,
   res: Response
 ) => {
   try {
-    // TODO: get statistics from the database
-    const stats = {
+    const userId = req.userId;
+
+    const stats: MeetingStats = {
       generalStats: {
-        totalMeetings: 100,
-        averageParticipants: 4.75,
-        totalParticipants: 475,
-        shortestMeeting: 15,
-        longestMeeting: 120,
-        averageDuration: 45.3,
+        totalMeetings: 0,
+        averageParticipants: 0,
+        totalParticipants: 0,
+        shortestMeeting: 0,
+        longestMeeting: 0,
+        averageDuration: 0,
       },
-      topParticipants: [
-        { participant: "John Doe", meetingCount: 20 },
-        { participant: "Jane Smith", meetingCount: 18 },
-        { participant: "Bob Johnson", meetingCount: 15 },
-        { participant: "Alice Brown", meetingCount: 12 },
-        { participant: "Charlie Davis", meetingCount: 10 },
-      ],
-      meetingsByDayOfWeek: [
-        { dayOfWeek: 1, count: 10 },
-        { dayOfWeek: 2, count: 22 },
-        { dayOfWeek: 3, count: 25 },
-        { dayOfWeek: 4, count: 20 },
-        { dayOfWeek: 5, count: 18 },
-        { dayOfWeek: 6, count: 5 },
-        { dayOfWeek: 7, count: 0 },
-      ],
+      topParticipants: [],
+      meetingsByDayOfWeek: [],
     };
+
+    // Aggregation Pipeline - this will be used to retrieve meeting statistics
+    // We collect all of a user's meetings that have an end date i.e. is completed.
+    // We then calculate stats based on the # of participants and the duration of the meetings.
+    // We also determine the top participants and the meetings by day of the week.
+    const aggregationPipeline: PipelineStage[] = [
+      { $match: { userId: userId } },
+      {
+        $facet: {
+          generalStats: [
+            {
+              $match: {
+                endDate: { $exists: true },
+                duration: { $exists: true },
+              },
+            },
+            {
+              $project: {
+                participantsCount: { $size: "$participants" },
+                duration: "$duration",
+              },
+            },
+            {
+              $group: {
+                _id: null,
+                totalMeetings: { $sum: 1 },
+                averageParticipants: { $avg: "$participantsCount" },
+                totalParticipants: { $sum: "$participantsCount" },
+                shortestMeeting: { $min: "$duration" },
+                longestMeeting: { $max: "$duration" },
+                averageDuration: { $avg: "$duration" },
+              },
+            },
+          ],
+          topParticipants: [
+            { $unwind: "$participants" },
+            {
+              $group: {
+                _id: "$participants",
+                meetingCount: { $sum: 1 },
+              },
+            },
+            { $sort: { meetingCount: -1 } },
+            { $limit: 5 },
+            {
+              $project: {
+                _id: 0,
+                participant: "$_id",
+                meetingCount: 1,
+              },
+            },
+          ],
+          meetingsByDayOfWeek: [
+            {
+              $addFields: {
+                dayOfWeek: { $isoDayOfWeek: "$date" },
+              },
+            },
+            {
+              $group: {
+                _id: "$dayOfWeek",
+                count: { $sum: 1 },
+              },
+            },
+            { $sort: { _id: 1 } },
+            {
+              $project: {
+                _id: 0,
+                dayOfWeek: "$_id",
+                count: 1,
+              },
+            },
+          ],
+        },
+      },
+    ];
+
+    const results = await Meeting.aggregate(aggregationPipeline).exec();
+
+    if (results.length > 0) {
+      const generalStatsData = results[0].generalStats[0];
+      if (generalStatsData) {
+        stats.generalStats = {
+          totalMeetings: generalStatsData.totalMeetings || 0,
+          averageParticipants: parseFloat(
+            generalStatsData.averageParticipants?.toFixed(2) || "0"
+          ),
+          totalParticipants: generalStatsData.totalParticipants || 0,
+          shortestMeeting: generalStatsData.shortestMeeting || 0,
+          longestMeeting: generalStatsData.longestMeeting || 0,
+          averageDuration: parseFloat(
+            generalStatsData.averageDuration?.toFixed(2) || "0"
+          ),
+        };
+      }
+
+      stats.topParticipants = results[0].topParticipants;
+
+      // Ensure all days of the week are represented
+      const dayCounts: { [key: number]: number } = {};
+      results[0].meetingsByDayOfWeek.forEach((item: any) => {
+        dayCounts[item.dayOfWeek] = item.count;
+      });
+
+      for (let day = 1; day <= 7; day++) {
+        stats.meetingsByDayOfWeek.push({
+          dayOfWeek: day,
+          count: dayCounts[day] || 0,
+        });
+      }
+    }
+
     res.json(stats);
+    logger.info({
+      message: "Retrieved meeting statistics",
+      userId: userId,
+      stats: stats,
+    });
   } catch (err) {
-    res.status(500).json({ message: (err as Error).message });
+    logger.error({
+      message: "Error retrieving meeting statistics",
+      error: (err as Error).message,
+      stack: (err as Error).stack,
+    });
+    res.status(500).json({ message: "Internal Server Error" });
   }
 };
