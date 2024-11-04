@@ -4,6 +4,8 @@ import { Meeting } from "../meetings/meeting.model.js";
 import { Task } from "../tasks/task.model.js";
 import { Response } from "express";
 import logger from "../../logger.js";
+import { getCache, setCache } from "../../utils/cache.js";
+import { config } from "../../config.js";
 
 interface UpcomingMeeting {
   _id: string;
@@ -37,11 +39,22 @@ export const getDashboardStats = async (
 ) => {
   try {
     const userId = req.userId;
+    const cacheKey = `dashboardStats:${userId}`;
+
+    // Check if dashboard stats are cached
+    const cachedStats = await getCache(cacheKey);
+    if (cachedStats) {
+      res.json(JSON.parse(cachedStats));
+      return;
+    }
+
     const now = Date.now();
 
-    const totalMeetings = await Meeting.countDocuments({ userId });
+    // Fetch Total Meetings
+    const totalMeetingsPromise = Meeting.countDocuments({ userId });
 
-    const taskSummary = await Task.aggregate([
+    // Fetch Task Summary
+    const taskSummaryPromise = Task.aggregate([
       { $match: { userId } },
       {
         $group: {
@@ -51,17 +64,19 @@ export const getDashboardStats = async (
       },
     ]);
 
-    const upcomingMeetings = await Meeting.find({
+    // Fetch Upcoming Meetings
+    const upcomingMeetingsPromise = Meeting.find({
       userId,
       date: { $gte: now },
     })
       .sort({ date: 1 })
       .limit(5)
       .select("_id title date participants")
-      .lean() // We don't need the full document, just the data we need
+      .lean()
       .exec();
 
-    const overdueTasks = await Task.find({
+    // Fetch Overdue Tasks
+    const overdueTasksPromise = Task.find({
       userId,
       dueDate: { $lt: now },
       status: { $ne: "completed" },
@@ -71,6 +86,16 @@ export const getDashboardStats = async (
       .lean()
       .exec();
 
+    // Execute all promises concurrently
+    const [totalMeetings, taskSummary, upcomingMeetings, overdueTasks] =
+      await Promise.all([
+        totalMeetingsPromise,
+        taskSummaryPromise,
+        upcomingMeetingsPromise,
+        overdueTasksPromise,
+      ]);
+
+    // Process Task Summary
     const taskSummaryProcessed = {
       pending: 0,
       "in-progress": 0,
@@ -84,6 +109,7 @@ export const getDashboardStats = async (
       }
     });
 
+    // Process Upcoming Meetings
     const upcomingMeetingsProcessed: UpcomingMeeting[] = upcomingMeetings.map(
       (meeting: any) => ({
         _id: meeting._id,
@@ -93,6 +119,7 @@ export const getDashboardStats = async (
       })
     );
 
+    // Process Overdue Tasks
     const overdueTasksProcessed: OverdueTask[] = overdueTasks.map(
       (task: any) => ({
         _id: task._id,
@@ -103,6 +130,7 @@ export const getDashboardStats = async (
       })
     );
 
+    // Assemble Dashboard Data
     const dashboardData: DashboardData = {
       totalMeetings,
       taskSummary: taskSummaryProcessed,
@@ -110,9 +138,25 @@ export const getDashboardStats = async (
       overdueTasks: overdueTasksProcessed,
     };
 
+    // Cache the dashboard data
+    await setCache(
+      cacheKey,
+      JSON.stringify(dashboardData),
+      config.DASHBOARD_STATS_CACHE_TTL
+    );
+
     res.json(dashboardData);
+    logger.info({
+      message: "Retrieved dashboard statistics",
+      userId,
+      dashboardData,
+    });
   } catch (err) {
-    logger.error(err);
+    logger.error({
+      message: "Error retrieving dashboard statistics",
+      error: (err as Error).message,
+      stack: (err as Error).stack,
+    });
     res.status(500).json({ message: "Internal Server Error" });
   }
 };

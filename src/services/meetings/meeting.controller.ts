@@ -4,6 +4,8 @@ import { Meeting } from "./meeting.model.js";
 import { AuthenticatedRequest } from "../../middlewares/auth.js";
 import { Task } from "../tasks/task.model.js";
 import logger from "../../logger.js";
+import { getCache, setCache } from "../../utils/cache.js";
+import { config } from "../../config.js";
 
 export const getAllMeetings = async (
   req: AuthenticatedRequest,
@@ -218,6 +220,14 @@ export const getMeetingStats = async (
 ) => {
   try {
     const userId = req.userId;
+    const cacheKey = `meetingStats:${userId}`;
+
+    // Check if stats are cached
+    const cachedStats = await getCache(cacheKey);
+    if (cachedStats) {
+      res.json(JSON.parse(cachedStats));
+      return;
+    }
 
     const stats: MeetingStats = {
       generalStats: {
@@ -232,10 +242,6 @@ export const getMeetingStats = async (
       meetingsByDayOfWeek: [],
     };
 
-    // Aggregation Pipeline - this will be used to retrieve meeting statistics
-    // We collect all of a user's meetings that have an end date i.e. is completed.
-    // We then calculate stats based on the # of participants and the duration of the meetings.
-    // We also determine the top participants and the meetings by day of the week.
     const aggregationPipeline: PipelineStage[] = [
       { $match: { userId: userId } },
       {
@@ -342,6 +348,13 @@ export const getMeetingStats = async (
         });
       }
     }
+
+    // Cache the result
+    await setCache(
+      cacheKey,
+      JSON.stringify(stats),
+      config.MEETING_STATS_CACHE_TTL
+    );
 
     res.json(stats);
     logger.info({
