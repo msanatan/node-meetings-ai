@@ -13,7 +13,7 @@ export interface IMeeting extends Document {
 }
 
 const meetingSchema = new Schema<IMeeting>({
-  userId: { type: String, required: true },
+  userId: { type: String, required: true, index: true },
   title: { type: String, required: true },
   date: { type: Date, required: true },
   endDate: { type: Date },
