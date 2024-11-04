@@ -15,4 +15,13 @@ export const requestLogger = (
     query: req.query,
   });
   next();
+  logger.debug({
+    message: "Outgoing Response",
+    status: res.statusCode,
+    method: req.method,
+    url: req.url,
+    body: req.body,
+    params: req.params,
+    query: req.query,
+  });
 };

@@ -4,6 +4,8 @@ export interface IMeeting extends Document {
   userId: string;
   title: string;
   date: Date;
+  endDate?: Date;
+  duration?: number;
   participants: string[];
   transcript: string;
   summary: string;
@@ -11,13 +13,15 @@ export interface IMeeting extends Document {
 }
 
 const meetingSchema = new Schema<IMeeting>({
-  userId: String,
-  title: String,
-  date: Date,
-  participants: [String],
-  transcript: String,
-  summary: String,
-  actionItems: [String],
+  userId: { type: String, required: true, index: true },
+  title: { type: String, required: true },
+  date: { type: Date, required: true },
+  endDate: { type: Date },
+  duration: { type: Number },
+  participants: { type: [String], required: true },
+  transcript: { type: String, default: "" },
+  summary: { type: String, default: "" },
+  actionItems: { type: [String], default: [] },
 });
 
 export const Meeting = mongoose.model<IMeeting>("Meeting", meetingSchema);

@@ -11,7 +11,7 @@ export interface ITask extends Document {
 
 const taskSchema = new Schema<ITask>({
   meetingId: { type: Schema.Types.ObjectId, ref: "Meeting" },
-  userId: String,
+  userId: { type: String, index: true },
   title: String,
   description: String,
   status: {
