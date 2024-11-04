@@ -9,6 +9,11 @@ interface IConfig {
   jwtSecret: string;
   jwtExpiration: string;
   logLevel: string;
+  redisHost: string;
+  redisPort: number;
+  redisPassword: string;
+  MEETING_STATS_CACHE_TTL: number;
+  DASHBOARD_STATS_CACHE_TTL: number;
 }
 
 export const config: IConfig = {
@@ -18,4 +23,15 @@ export const config: IConfig = {
   jwtSecret: process.env.JWT_SECRET || "secret",
   jwtExpiration: process.env.JWT_EXPIRATION || "1h",
   logLevel: process.env.LOG_LEVEL || "info",
+  redisHost: process.env.REDIS_HOST || "redis",
+  redisPort: parseInt(process.env.REDIS_PORT || "6379", 10),
+  redisPassword: process.env.REDIS_PASSWORD || "",
+  MEETING_STATS_CACHE_TTL: parseInt(
+    process.env.MEETING_STATS_CACHE_TTL || "3600",
+    10
+  ),
+  DASHBOARD_STATS_CACHE_TTL: parseInt(
+    process.env.DASHBOARD_STATS_CACHE_TTL || "3600",
+    10
+  ),
 };
