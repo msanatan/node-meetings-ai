@@ -17,6 +17,8 @@ To run this project, simply bring up the docker containers:
 docker compose up -d
 ```
 
+### Running the server on your host machine
+
 You may want to work on the Node.js on your host machine. You should follow these steps then:
 
 Copy the env vars from the example file, changing as necessary:
@@ -52,7 +54,7 @@ npm run seed
 You'll need a JWT to use the API. You can generate one like this:
 
 ```bash
-npm run generate:jwt <USER_ID>
+npm run generate:token <USER_ID>
 ```
 
 Replacing `<USER_ID>` with the user you want

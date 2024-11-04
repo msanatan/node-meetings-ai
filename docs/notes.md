@@ -48,6 +48,6 @@ Why have a separate app.ts and server.ts file? Single responsibility principle -
 
 ## Limitations
 
-1. Stats and dashboard. I'm relatively new to Mongo, so with limited time I haven't been able to get into the aggregation abilities fully
-1. The AI mocking is subpar. Ideally it'll be an external service, with a delay so we don't immediately get tasks coming out from it
-1. Would have liked to refactor some more by creating repositories, and maybe adding Redis. Caching helps with scalablity and as the app grows these level of abstractions come in handy
+1. The AI mocking is subpar. Ideally it'll be an external service, with a delay so we don't immediately get tasks coming out from it.
+1. I'd also mock the endpoint to verify the JWT has data for a real user.
+1. Would have liked to add Redis. The aggregate endpoints definitely need caching to scale well! This feature still needs testing, but it's in the `redis` branch.
